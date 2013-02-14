@@ -1,0 +1,68 @@
+#!/usr/bin/perl
+package MT::Tool::MTStaticMakeManifest;
+use strict;
+use warnings;
+use FindBin;
+use lib map File::Spec->catdir($FindBin::Bin, File::Spec->updir, $_), qw/lib extlib/;
+use base qw( MT::Tool );
+use File::Find;
+use MT::FileMgr;
+
+sub usage { '--document_root /path/to/document_root --version 1.0 --manifest manifest.appcache' }
+
+sub help {
+    return "Make Manifest file for HTML5 application cache(mt-static).\n";
+}
+
+my ( $document_root, $version, $manifest );
+
+sub options {
+    return (
+        'document_root=s' => \$document_root,
+        'version=s' => \$version,
+        'manifest=s' => \$manifest,
+    );
+}
+
+sub main {
+    my $class = shift;
+    my ( $verbose ) = $class->SUPER::main( @_ );
+    my $mt = MT->new or die MT->errstr;
+    my $directory = MT->config( 'StaticFilePath' );
+    if (! $manifest ) {
+        $manifest = MT->config( 'ManifestFileName' ) || 'manifest.appcache';
+    }
+    my $version_id = MT->version_id;
+    if (! $version ) {
+        $version = $version_id;
+    }
+    my @wantedFiles;
+    if (! $document_root ) {
+        print "Option --document_root is required.";
+        return;
+    }
+    my $out = File::Spec->catfile( $directory, $manifest );
+    File::Find::find ( sub { push ( @wantedFiles, $File::Find::name ) unless (/^\./)
+                            || ! -f; }, $directory );
+    my $fmgr = MT::FileMgr->new( 'Local' ) or die MT::FileMgr->errstr;
+    my $search = quotemeta( $document_root );
+    open( my $fh, ">> $out" ) || die "Can't open $out!";
+    print $fh "CACHE MANIFEST\n";
+    print $fh "#VERSION ${version}\n\nCACHE:\n";
+    for my $file ( @wantedFiles ) {
+        $file =~ s!^$search!/!;
+        $file =~ s!^//!/!;
+        if ( $file eq $manifest ) {
+            next;
+        }
+        if ( $file =~ /\.((?:cs|j)s)$/i ) {
+            print $fh "${file}?v=${version_id}\n";
+        } else {
+            print $fh "${file}\n";
+        }
+    }
+    close( $fh );
+    1;
+}
+
+__PACKAGE__->main() unless caller;

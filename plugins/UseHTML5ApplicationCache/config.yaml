@@ -1,0 +1,14 @@
+name: UseHTML5ApplicationCache
+config_settings:
+    ManifestFileName:
+        default: manifest.appcache
+callbacks:
+    MT::App::CMS::template_source.header: >
+            sub {
+                    my ( $cb, $app, $tmpl ) = @_;
+                    my $pointer = quotemeta( '<html lang="<$mt:var name="language_tag"$>">' );
+                    my $replace = '<html lang="<$mt:var name="language_tag"$>" manifest="<$mt:var name="static_uri"$><$mt:var name="config.ManifestFileName"$>">';
+                    $$tmpl =~ s/$pointer/$replace/;
+            }
+
+# AddType text/cache-manifest .appcache
